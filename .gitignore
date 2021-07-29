@@ -1,0 +1,49 @@
+# Simulink autosave extension
+.autosave
+*.txt
+*.nc
+tmp
+*.mat
+# R data files
+.Rproj.user
+.RData
+.Rhistory
+*.log
+*.nb.html
+*.html
+# IGNORE TIMESAT FILES
+*.tpa
+*.21
+*.tts
+*.ndx
+
+# Compile files
+*.o
+*.dll
+*.zip
+*.gz
+
+# Figures
+*.jpg
+*.tif
+*.emf
+*.avi
+*.mp4
+
+log
+*.RDS
+
+
+# Office document
+notebook
+*.csv
+*.xlsx
+*.docx
+*.pdf
+
+# TIMESAT file
+*.set
+*.rda
+
+*/temp
+*/TSM
