@@ -61,15 +61,16 @@ plot_phenofit2 <- function(d_obs, d_season, d_fit, base_size = 12) {
             geom_vline(data = d_season, aes(xintercept = time_end), color = "red", linetype = 2, size = lwd, alpha = l_alpha)
     } else {
         # geom_vline(data = d_season, aes(xintercept = time_start), color = "blue", linetype = 2, size = lwd, alpha = l_alpha) +
-        p = p + geom_vline(data = d_season, aes(xintercept = time_end), 
+        p = p + geom_vline(data = d_season, aes(xintercept = time_end),
             color = "red", linetype = 2, size = lwd, alpha = l_alpha, show.legend = F)
     }
     if (nptperyear >= 100) {
         p = p + geom_line(color = "grey60", size = 0.6)
     } else {
-        p = p + geom_point(aes(color = QC_flag, shape = QC_flag, fill = QC_flag), size = 1.4) + 
+        p = p + geom_point(aes(color = QC_flag, shape = QC_flag, fill = QC_flag),
+                           size = 3) +
             scale_color_manual(values = qc_colors[I_qc], drop = F, guide = guide_legend(order = 1)) +
-            scale_fill_manual(values = qc_colors[I_qc], drop = F, guide = guide_legend(order = 1)) 
+            scale_fill_manual(values = qc_colors[I_qc], drop = F, guide = guide_legend(order = 1))
     }
 
     p +
@@ -136,12 +137,13 @@ plot_phenofit_V3 <- function(d_obs, d_season, d_fit, base_size = 12) {
     if (nptperyear >= 100) {
         p <- p + geom_line(color = "grey60", size = 0.6)
     } else {
-        p <- p + geom_point(aes(color = QC_flag, shape = QC_flag, fill = QC_flag), size = 1.4) +
+        p <- p + geom_point(aes(color = QC_flag, shape = QC_flag, fill = QC_flag),
+                            size = 2.5) +
             scale_color_manual(values = qc_colors[I_qc], drop = F, guide = guide_legend(order = 1)) +
             scale_fill_manual(values = qc_colors[I_qc], drop = F, guide = guide_legend(order = 1))
     }
 
-    qc_name = ""; 
+    qc_name = "";
     p +
         # geom_rect(data = d_ribbon, aes(x = NULL, y = NULL, xmin = xmin, xmax = xmax, group = I, fill = crop),
         #     ymin = -Inf, ymax = Inf, alpha = 0.2, show.legend = F) +
@@ -160,9 +162,9 @@ plot_phenofit_V3 <- function(d_obs, d_season, d_fit, base_size = 12) {
         # geom_point(data = d_season, aes(time_end, val_end), color = "blue") +
         # geom_point(data = d_season, aes(time_peak, val_peak), color = "red") +
         # theme_bw(base_size = base_size, base_family = "") +
-        theme_grey(base_size = base_size) + 
+        theme_grey(base_size = base_size) +
         theme(
-            axis.text = element_text(color = "black"),
+            # axis.text = element_text(color = "black"),
             legend.position =  "bottom"
             # panel.grid.minor = element_blank(),
             # panel.grid.major.x = element_line(linetype = 3, size = 0.5),

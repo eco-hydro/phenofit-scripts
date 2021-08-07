@@ -47,3 +47,8 @@ notebook
 
 */temp
 */TSM
+
+# Directory
+Figure2*
+temp
+*.jld*

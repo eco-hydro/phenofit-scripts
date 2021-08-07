@@ -104,7 +104,7 @@ simu_VI <- function(SOS = 50, EOS = 100,
     r_kong <- l_kong[c("d_obs", "d_season", "d_fit")]
 
     # devtools::load_all("../rTIMESAT.R/")
-    r_TS = TIMESAT_process(dat, nptperyear, half_win = 4, p_trs = 0.02,
+    r_TS = TIMESAT_process(dat, nptperyear, half_win = 4, p_trs = 0.5,
                         # methods = "SG",
                         seasonpar = 0.0,
                         cache = FALSE)
@@ -112,7 +112,8 @@ simu_VI <- function(SOS = 50, EOS = 100,
     d_season = r_TS$pheno[meth == 'SG'] %>% dplyr::rename(flag = season)
     d_fit    = r_TS$fit
     d_fit$meth %<>% factor(c("SG", "AG", "DL"))
-    r_TS <- listk(d_obs, d_season, d_fit)
+    d_pheno = r_TS$pheno[meth == 'AG' & !is.na(time_peak)] %>% dplyr::rename(flag = season)
+    r_TS <- listk(d_obs, d_season, d_fit, d_pheno)
 
     r <- r_kong
     d_fit <- rbind(
@@ -124,6 +125,8 @@ simu_VI <- function(SOS = 50, EOS = 100,
     r$d_fit <- d_fit
 }
 
+r_TS$d_pheno[, 1:7] %>%
+    mutate(across(where(is.Date), yday))
 {
     source("scripts/paper-phenofit/main_phenofit_plot.R")
     r$base_size = 16
@@ -145,6 +148,8 @@ simu_VI <- function(SOS = 50, EOS = 100,
     write_fig( p, "Figure8_phenofit&TIMESAT_multi-GSs_v3.pdf", 10, 4)
 }
 
+r_pheno$pheno
+# get_pheno()
 # {
 #     # previous version, 2021-07-30
 #     p_kong = do.call(plot_phenofit2, r_kong) + mytheme +
@@ -160,3 +165,10 @@ simu_VI <- function(SOS = 50, EOS = 100,
 #     # write_fig(p_TS, "Figure3b_TIMESAT_multi-GSs.pdf", 10, 3)
 #     write_fig( p_kong / p_TS, "Figure8_phenofit&TIMESAT_multi-GSs_v2.pdf", 10, 6.5)
 # }
+
+{
+    write_fig({
+        plot(r[[1:16]])
+    }, "a.pdf", 8, 8)
+}
+

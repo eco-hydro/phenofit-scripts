@@ -36,7 +36,8 @@ library(lubridate)
             wmin = wmin,
             nextend = 2,
             minExtendMonth = 0.5, maxExtendMonth = 1, minPercValid   = 0
-        ))
+        ),
+        constrain = T)
 
     ## check the curve fitting parameters
     l_param <- get_param(fit)
@@ -46,16 +47,14 @@ library(lubridate)
     TRS = c(0.1, 0.2, 0.5)
     l_pheno <- get_pheno(fit, TRS = TRS, IsPlot = FALSE) #%>% map(~melt_list(., "meth"))
     pheno <- l_pheno$doy %>% melt_list("meth")
-}
-
+# }
 ## 2. Visualization ------------------------------------------------------------
-# growing season dividing
-Ipaper::write_fig({
-    par(cex = 1.1)
-    plot_season(INPUT, brks, ylab = "EVI", margin = 0.2, show.shade = FALSE)
-}, "Figure4_seasons.pdf", 9, 3.8)
+    # growing season dividing
+    # Ipaper::write_fig({
+    #     par(cex = 1.1)
+    #     plot_season(INPUT, brks, ylab = "EVI", margin = 0.2, show.shade = FALSE)
+    # }, "Figure4_seasons.pdf", 9, 3.8)
 
-{
     years = 2010:2017
     layer_extra = list(
         scale_x_date(breaks = make_date(years), labels = years,
@@ -66,7 +65,7 @@ Ipaper::write_fig({
     # fine fitting
     g <- plot_curvefits(dfit, brks, title = NULL, cex = 1.5, ylab = "EVI",
                         layer_extra = layer_extra, angle = 0)
-    Ipaper::write_fig(g, "Figure5_curvefitting_unconstrain.pdf", 8, 6, show = TRUE)
+    Ipaper::write_fig(g, "Figure5_curvefitting_unconstrain.jpg", 8, 6, show = TRUE)
 }
 
 # extract phenology metrics, only the first 3 year showed at here
@@ -86,7 +85,6 @@ write_fig({
     lgd_short <- phenofit:::make_legend(NULL, NULL, 1, nmax_points = 4)
     grid.draw(lgd_short)
 }, "Figure6_phenology_metrics.jpg", 8, 5, show = TRUE)
-
 
 {
     # on the top of `Figure7_predata...`

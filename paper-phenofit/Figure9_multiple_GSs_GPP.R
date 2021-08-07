@@ -49,21 +49,19 @@ if (1) {
 }
 
 ## 2. TIMESAT ------------------------------------------------------------------
-# TIMESAT not work at some site, hence not used in the last figure
-df = df_part[site %in% sites_test, .(site, t = date, y = GPP_NT, w = 1 - is.na(GPP_NT))]
-
-{
-    devtools::load_all("../rTIMESAT.R/")
-    dat = df[site == sites_test[1]]
-    r_TS = TIMESAT_process(dat, nptperyear, half_win = 4, p_trs = 0.02,
-                           methods = c("AG"),
-                           seasonpar = 0.0,
-                           cache = FALSE)
-    # d_obs    = dat
-    # d_season = r_TS$pheno[meth == 'SG'] %>% dplyr::rename(flag = season)
-    # d_fit    = r_TS$fit
-    # d_fit$meth %<>% factor(c("SG", "AG", "DL"))
-    # r_TS <- listk(d_obs, d_season, d_fit)
-}
-
-
+## TIMESAT not work at some site, hence not used in the last figure
+# df = df_part[site %in% sites_test, .(site, t = date, y = GPP_NT, w = 1 - is.na(GPP_NT))]
+# 
+# {
+#     devtools::load_all("../rTIMESAT.R/")
+#     dat = df[site == sites_test[1]]
+#     r_TS = TIMESAT_process(dat, nptperyear, half_win = 4, p_trs = 0.02,
+#                            methods = c("AG"),
+#                            seasonpar = 0.0,
+#                            cache = FALSE)
+#     # d_obs    = dat
+#     # d_season = r_TS$pheno[meth == 'SG'] %>% dplyr::rename(flag = season)
+#     # d_fit    = r_TS$fit
+#     # d_fit$meth %<>% factor(c("SG", "AG", "DL"))
+#     # r_TS <- listk(d_obs, d_season, d_fit)
+# }
