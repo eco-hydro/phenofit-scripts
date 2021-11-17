@@ -1,16 +1,76 @@
 # source("main_pkgs.R")
 library(phenofit)
 library(Ipaper) # remotes::install_github("rpkgs/Ipaper")
+library(sf2)    # remotes::install_github("rpkgs/sf2")
 library(grid)
 library(ggplot2)
 library(ggnewscale)
 library(lubridate)
 library(zeallot)
+library(stringr)
 
 library(dplyr)
 library(job)
 library(sp)
+library(sf)
 library(terra)
+
+library(data.table)
+library(dplyr)
+library(rcolors)
+library(lattice.layers)
+
+
+prj84 = sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
+df2sp <- function (d, formula = ~lon + lat, prj) {
+    if (missing(prj))
+        prj <- prj84
+    coordinates(d) <- formula
+    proj4string(d) <- prj
+    return(d)
+}
+
+#' read sentinel2 tiff file
+read_rast <- function(file) {
+    r = rast(file)
+    # guess date from band names
+    dates = names(r) %>% substr(1, 8) %>% as.Date("%Y%m%d")
+    terra::time(r) = dates
+    names(r) = dates
+    r
+}
+
+#' convert `rast` to 2d data, with the dimension of [`ngrid`, `ntime`].
+#'
+#' @param r rast object
+#' @param bareval the VI value of bare land. Pixels with mutli-annual mean of VI
+#' less than `bareval` will be eliminated.
+#'
+#' @return
+#' - `mat`: matrix (with the dimension of [`ngrid`, `ntime`]), Vegetation index (VI).
+#' - `x_mean`: vector (with the length of `ngrid`), mutli-annual mean of VI.
+#' - `dates`: Date vector (with the length of `ntime`), corresponding dates of VI.
+#' - `d_coords`: A data.table, with the coordinates of each pixel.
+#' - `I_grid`: Integer vector, pixels with `x_mean` greater than 0.1. If not, this pixel will be
+#'    eleminated in phenology extraction.
+#' - `grid`: SpatiaPixelsDataFrame object.
+#'
+#' @export
+rast2mat <- function(r, backval = 0.1) {
+    d_coord = rast_coord(r[[1]])
+    arr = rast_array(r)
+    mat = array_3dTo2d(arr)
+
+    range = ext(r) %>% as.vector() # [xmin, xmax, ymin, ymax]
+    cellsize = res(r)
+    grid <- make_grid(range, cellsize)
+
+    x_mean = mat %>% rowMeans(na.rm = TRUE)
+    I_grid = which(!(x_mean <= backval | is.na(x_mean)))
+    d_coord = grid@coords %>% as.data.table() %>% set_colnames(c("lon", "lat")) %>% cbind(I = 1:nrow(.), .)
+    listk(mat, dates = terra::time(r), x_mean,
+        d_coord, I_grid, grid)
+}
 
 modis_date <- function(date_begin, date_end, dn = 8) {
     year_begin = year(date_begin)
@@ -21,27 +81,46 @@ modis_date <- function(date_begin, date_end, dn = 8) {
     dates[dates >= date_begin & dates <= date_end]
 }
 
-get_input <- function(i) {
-    d = data.table(EVI = EVI[i,], doy = DOY[i,], qc = QC[i, ]) %>%
-        mutate(t = getRealDate(dates, doy))
+#' @param data A list object, with the elements of
+#' - `VI`: vegetation index
+#' - `QC`: quality control variable
+#' - `DOY`: (optional) Day of year
+#' - `dates`: corresponding dates of VI
+get_input <- function(i, data, wmin = 0.2, wmid = 0.5) {
+    d = data.table(VI = data$VI[i,], QC = data$QC[i, ])
+    if (!is.null(data$DOY)) {
+        # this is for MODIS DOY
+        d %<>% mutate(t = getRealDate(dates, data$DOY[i, ]))
+    }
+    c(d$QC_flag, d$w) %<-% data$qcFUN(d$QC, wmin = wmin, wmid = wmid)
+    d
 }
 
-phenofit_point <- function(i, plot = FALSE, verbose = FALSE,
-                           period = c(2015, 2020), wmid = 0.5) {
+#' phenofit_point
+#'
+#' @param d A data.table or data.frame object, with the elements of
+#' - `VI`: vegetation index
+#' - `QC`: quality control variable
+#' - `t`: corresponding dates of VI
+#' @param dates corresponding dates of VI. If `d$t` is missing, `dates` will be used.
+#' @param period used to constrain in plot
+#'
+#' @export
+phenofit_point <- function(d, dates = NULL,
+    plot = FALSE, title = NULL, show.legend = TRUE,
+    verbose = FALSE,
+    period = c(2015, 2020)) {
 
-    d = data.table(EVI = EVI[i,], doy = DOY[i,], qc = QC[i, ]) %>%
-        mutate(t = getRealDate(dates, doy))
-    if (!is.null(period)) d <- d[year(t) >= period[1] & year(t) <= period[2]]
-
-    c(QC_flag, w) %<-% qc_summary(d$qc, wmin = 0.2, wmid = wmid)
-    input <- check_input(d$t, d$EVI/1e4, d$w, QC_flag = QC_flag,
-                         nptperyear = nptperyear, maxgap = nptperyear / 4, wmin = 0.2)
+    if (!is.null(d$t)) dates = d$t
+    input <- check_input(dates, d$VI, d$w, QC_flag = d$QC_flag,
+                         nptperyear = get_options("nptperyear"),
+                         maxgap = nptperyear / 4, wmin = 0.2)
     brks <- season_mov(input)
+    # browser()
 
     # plot_season(input, brks)
     ## 2.4 Curve fitting
     fit  <- curvefits(input, brks, constrain = T)
-
     ## check the curve fitting parameters
     l_param <- get_param(fit)
     dfit   <- get_fitting(fit)
@@ -52,7 +131,7 @@ phenofit_point <- function(i, plot = FALSE, verbose = FALSE,
     pheno <- l_pheno$doy %>% melt_list("meth")
 
     if (plot) {
-        years = 2010:2021
+        years = period[1]:period[2]
         layer_extra = list(
             scale_x_date(breaks = make_date(years), labels = years,
                          limits = c(make_date(years[1]), make_date(last(years), 12, 31)),
@@ -61,23 +140,13 @@ phenofit_point <- function(i, plot = FALSE, verbose = FALSE,
         )
         # BUG: unknown reason, `scale_y_continuous` leads color's order changing.
         # fine fitting
-        # browser()
-        g <- plot_curvefits(dfit, brks, title = NULL, cex = 1.5, ylab = "EVI",
-                            layer_extra = layer_extra, angle = 0)
-        Ipaper::write_fig(g, "Figure5_curvefitting.pdf", 8,
-                          length(get_options("fitting")$methods)*2, show = TRUE)
+        g <- plot_curvefits(dfit, brks, title = title, cex = 1.5, ylab = "EVI",
+                            layer_extra = layer_extra, angle = 0, show.legend = show.legend)
+        # grid.newpage()
+        grid.draw(g)
     }
     listk(pheno, fit, brks)
     # pheno
-}
-
-prj84 = sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
-df2sp <- function (d, formula = ~lon + lat, prj) {
-    if (missing(prj))
-        prj <- prj84
-    coordinates(d) <- formula
-    proj4string(d) <- prj
-    return(d)
 }
 
 #' dump 4th season
@@ -165,7 +234,7 @@ sp_layout <- list("sp.lines", shp, lwd = 0.5, first = FALSE)
 plot_phenomap <- function(tif, outfile = NULL, show = TRUE, overwrite = FALSE){
     if (is.null(outfile)) outfile = gsub(".tif$", ".pdf", tif)
     if (file.exists(outfile) && !overwrite) return()
-    
+
     print(outfile)
     r = rast(tif) %>%
         raster::brick() %>%

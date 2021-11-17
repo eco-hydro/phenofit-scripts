@@ -1,15 +1,10 @@
 # setwd("~/github/eco-hydro")
 source("scripts/main_pkgs.R")
-library(data.table)
-library(dplyr)
-library(rcolors)
-library(lattice.layers)
 
 # load("~/github/eco-hydro/MOD13A2_Henan_Input_2015_2020.rda") # INPUT
 # load("MOD13A2_Henan_pheno_V2.rda")
 load("scripts/data/MOD13A2_Henan_2015_2020.rda")
 d_coord %<>% data.table()
-
 load("pheno_V4.rda")
 
 # which.isnull(res) %>% length()
