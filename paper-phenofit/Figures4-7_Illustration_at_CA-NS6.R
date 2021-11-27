@@ -73,7 +73,7 @@ write_fig({
     # par(family = "Times")
     par(oma = c(2.5, 5.5, 2, 1)) # begin from b
     l_pheno <- get_pheno(fit[1:5], method = "AG", TRS = TRS,
-                         IsPlot = TRUE, show_title = FALSE)
+                         IsPlot = TRUE, show.title = FALSE)
 
     # add yaxis
     grid.draw(grid.text(x = 0.016, "EVI", rot = 90,

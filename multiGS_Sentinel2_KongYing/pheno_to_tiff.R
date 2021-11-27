@@ -1,37 +1,47 @@
 # setwd("~/github/eco-hydro")
-source("scripts/main_pkgs.R")
-
 # load("~/github/eco-hydro/MOD13A2_Henan_Input_2015_2020.rda") # INPUT
 # load("MOD13A2_Henan_pheno_V2.rda")
-load("scripts/data/MOD13A2_Henan_2015_2020.rda")
-d_coord %<>% data.table()
-load("pheno_V4.rda")
+source("scripts/main_pkgs.R")
 
-# which.isnull(res) %>% length()
-# i=275, j = 460, cell = 207330;
-# lon = 114.17917, lat = 34.0875, val = NaN
-# cellsize = 1/120
-# d = d_coord[abs(lon - 114.17917) <= cellsize/2 & abs(lat - 34.0875) <= cellsize/2, id]
+file_vi <- path.mnt("I:/Research/phenology/gee_whittaker/data-raw/NorthChina/sentinel2_KongYing_2019-2021_EVI2.tif")
+file_qc <- path.mnt("I:/Research/phenology/gee_whittaker/data-raw/NorthChina/sentinel2_KongYing_2019-2021_SCL.tif")
 
-# job suit for the case of small memory used and long time consumed task.
-# Only one method used in the test case
-df = res %>% rm_empty() %>% melt_list("gridId") #%>% dplyr::select(-meth)
+l <- read_rast(file_vi) %>% rast2mat()
+l_qc <- read_rast(file_qc) %>% rast2mat()
+dates <- l$dates
+data <- listk(VI = l$mat, QC = l_qc$mat, dates, qcFUN = qc_sentinel2)
+
+
+load("sentinel2_kong_V2.rda")
+
+df = res %>% rm_empty() %>% melt_list("gridId") %>% cbind(meth = "rough", .) #%>% dplyr::select(-meth)
 df[, gridId := as.integer(gridId)]
-df[, meth := as.factor(meth)]
+# df[, meth := as.factor(meth)]
 inds_bad = df[grep("_4", flag)]$gridId %>% unique() %>% sort()
 
 # df <- fread("pheno_V4.csv")
 df2 = dump_4th_season(df)
 # fwrite(df2, "pheno_V4.csv")
+outdir = "OUTPUT/phenofit_V0.3.4_KongYing_wHANTS_V2"
+point2rast(df2, l$d_coord, outdir = outdir,
+           prefix = "Sentinel2_KongYing_Pheno", overwrite = TRUE)
 
-# MOD13A2_Henan_Pheno
-point2rast(df2, d_coord, outdir = "phenofit_V0.3.4_wHANTS",
-           prefix = "MOD13A2_Henan_Pheno", overwrite = TRUE)
 
-source("scripts/main_pkgs.R")
-files = dir("phenofit_V0.3.4_wHANTS/", full.names = TRUE)
-foreach(tif = files, i = icount()) %do% {
-    plot_phenomap(tif, show = F)
+files = dir(outdir, "*.tif", full.names = TRUE)
+
+{
+    source("scripts/main_pkgs.R")
+    tmp =foreach(file = files, i = icount()) %do% {
+        # file = files[2]
+        season = basename(file) %>% str_extract("\\d(?=\\.tif)") %>% as.numeric()
+        brks = switch(season,
+                    `1` = list(sos = seq(10, 120, 10), eos = seq(110, 170, 5)),
+                    `2` = list(sos = seq(170, 220, 5), eos = seq(230, 280, 5)),
+                    list(sos = seq(180, 220, 5), eos = seq(220, 300, 10)))
+        outfile = gsub(".tif$", ".pdf", file)
+        g = plot_phenomap(file, brks = brks, overwrite = TRUE)
+        write_fig(g, outfile, 9.6, 7*2/3, show = T)
+    }
 }
 
 # library(rasterInspect)

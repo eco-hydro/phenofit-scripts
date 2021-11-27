@@ -12,65 +12,21 @@ library(stringr)
 library(dplyr)
 library(job)
 library(sp)
-library(sf)
-library(terra)
+# library(sf)
+# library(terra)
 
 library(data.table)
 library(dplyr)
 library(rcolors)
 library(lattice.layers)
 
+source("scripts/main_terra.R")
 
-prj84 = sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
-df2sp <- function (d, formula = ~lon + lat, prj) {
-    if (missing(prj))
-        prj <- prj84
-    coordinates(d) <- formula
-    proj4string(d) <- prj
-    return(d)
-}
-
-#' read sentinel2 tiff file
-read_rast <- function(file) {
-    r = rast(file)
-    # guess date from band names
-    dates = names(r) %>% substr(1, 8) %>% as.Date("%Y%m%d")
-    terra::time(r) = dates
-    names(r) = dates
-    r
-}
-
-#' convert `rast` to 2d data, with the dimension of [`ngrid`, `ntime`].
-#'
-#' @param r rast object
-#' @param bareval the VI value of bare land. Pixels with mutli-annual mean of VI
-#' less than `bareval` will be eliminated.
-#'
-#' @return
-#' - `mat`: matrix (with the dimension of [`ngrid`, `ntime`]), Vegetation index (VI).
-#' - `x_mean`: vector (with the length of `ngrid`), mutli-annual mean of VI.
-#' - `dates`: Date vector (with the length of `ntime`), corresponding dates of VI.
-#' - `d_coords`: A data.table, with the coordinates of each pixel.
-#' - `I_grid`: Integer vector, pixels with `x_mean` greater than 0.1. If not, this pixel will be
-#'    eleminated in phenology extraction.
-#' - `grid`: SpatiaPixelsDataFrame object.
-#'
-#' @export
-rast2mat <- function(r, backval = 0.1) {
-    d_coord = rast_coord(r[[1]])
-    arr = rast_array(r)
-    mat = array_3dTo2d(arr)
-
-    range = ext(r) %>% as.vector() # [xmin, xmax, ymin, ymax]
-    cellsize = res(r)
-    grid <- make_grid(range, cellsize)
-
-    x_mean = mat %>% rowMeans(na.rm = TRUE)
-    I_grid = which(!(x_mean <= backval | is.na(x_mean)))
-    d_coord = grid@coords %>% as.data.table() %>% set_colnames(c("lon", "lat")) %>% cbind(I = 1:nrow(.), .)
-    listk(mat, dates = terra::time(r), x_mean,
-        d_coord, I_grid, grid)
-}
+poly = sf::read_sf(path.mnt("D:/Documents/ArcGIS/china/bou2_4p_ChinaProvince.shp")) %>%
+    dplyr::filter(NAME == "河南省")
+vect = vect(poly)
+shp <- sf::as_Spatial(poly)
+sp_layout <- list("sp.lines", shp, lwd = 0.5, first = FALSE)
 
 modis_date <- function(date_begin, date_end, dn = 8) {
     year_begin = year(date_begin)
@@ -82,7 +38,7 @@ modis_date <- function(date_begin, date_end, dn = 8) {
 }
 
 #' @param data A list object, with the elements of
-#' - `VI`: vegetation index
+#' - `VI`: vegetation index, in the range of `[-1, 1]`
 #' - `QC`: quality control variable
 #' - `DOY`: (optional) Day of year
 #' - `dates`: corresponding dates of VI
@@ -90,7 +46,7 @@ get_input <- function(i, data, wmin = 0.2, wmid = 0.5) {
     d = data.table(VI = data$VI[i,], QC = data$QC[i, ])
     if (!is.null(data$DOY)) {
         # this is for MODIS DOY
-        d %<>% mutate(t = getRealDate(dates, data$DOY[i, ]))
+        d %<>% mutate(t = getRealDate(data$dates, data$DOY[i, ]))
     }
     c(d$QC_flag, d$w) %<-% data$qcFUN(d$QC, wmin = wmin, wmid = wmid)
     d
@@ -116,7 +72,6 @@ phenofit_point <- function(d, dates = NULL,
                          nptperyear = get_options("nptperyear"),
                          maxgap = nptperyear / 4, wmin = 0.2)
     brks <- season_mov(input)
-    # browser()
 
     # plot_season(input, brks)
     ## 2.4 Curve fitting
@@ -160,7 +115,7 @@ dump_4th_season <- function(df) {
 
     df_bad = merge(df, info_bad) %>%
         mutate(TRS5.los = TRS5.eos - TRS5.sos) %>%
-        reorder_name(c("gridId", "meth", "origin", "gridId", "flag", "TRS5.los"))
+        reorder_name(c("gridId", "meth", "origin", "flag", "TRS5.los"))
     df_good = df[-df_bad$I, ]
 
     df_mutiGS = dt_ddply(df_bad, .(gridId, meth, origin), function(d) {
@@ -226,41 +181,65 @@ point2rast <- function(df, d_coord,
 }
 
 
-shp <- read_sf(path.mnt("D:/Documents/ArcGIS/china/bou2_4p_ChinaProvince.shp")) %>%
-    dplyr::filter(NAME == "河南省") %>%
-    sf::as_Spatial()
-sp_layout <- list("sp.lines", shp, lwd = 0.5, first = FALSE)
-
-plot_phenomap <- function(tif, outfile = NULL, show = TRUE, overwrite = FALSE){
+plot_phenomap <- function(tif,
+    outfile = NULL,
+    brks = list(sos = seq(10, 120, 10), eos = seq(120, 200, 10)),
+    show = TRUE, overwrite = FALSE)
+{
     if (is.null(outfile)) outfile = gsub(".tif$", ".pdf", tif)
     if (file.exists(outfile) && !overwrite) return()
 
     print(outfile)
     r = rast(tif) %>%
         raster::brick() %>%
-        as_SpatialPixelsDataFrame() %>%
-        .[, -4]
+        as_SpatialPixelsDataFrame()
+    r@data %<>% as.data.frame()
 
-    brks_sos = seq(170, 210, 10)
-    brks_eos = seq(240, 300, 10)
-    brks = c(-Inf, brks_sos, brks_eos, Inf)
+    names = names(r)
+    names_sos = c("TRS5.sos", "DER.sos", "UD", "SD", "Greenup", "Maturity") %>% intersect(names)
+    names_eos = c("TRS5.eos", "DER.eos", "DD", "RD", "Senescence", "Dormancy") %>% intersect(names)
+    brks_sos = brks$sos %>% c(-Inf, ., Inf)
+    brks_eos = brks$eos %>% c(-Inf, ., Inf)
+
+    layout = if(length(names_sos) <= 4) c(2, 2) else c(3, 2)
 
     # colors = get_color("BlGrYeOrReVi200")
     # col_sos = get_color(colors[(1:100)], length(brks_sos))
     # col_eos = get_color(colors[-(1:100)], length(brks_eos))
     # cols = c(col_sos, "grey", col_eos)
+    cols_all = get_color("MPL_RdYlGn") #MPL_RdYlGn
+    # cols_eos = cols_all[1:64]
+    cols_eos = get_color("BlGrYeOrReVi200") # BlGrYeOrReVi200
+    cols_sos = get_color("MPL_RdYlGn") %>% rev()
 
-    nbrk = length(brks)
-    cols = get_color("BlGrYeOrReVi200", nbrk)
-    p <- sp_plot(r, colors = cols, brks = brks,
-                 sp.layout = sp_layout,
-                 xlim = c(110.3, 116.8),
-                 ylim = c(31.3, 36.6),
+    plot_sub <- function(names, cols, brks, NO_begin = 1) {
+        nbrk = length(brks)
+        cols = get_color(cols, nbrk)
+
+        sp_plot(r[, names], colors = cols, brks = brks,
+            NO_begin = NO_begin,
+            strip = TRUE,
+            par.strip.text = list(cex = 1.2),
+            par.settings2 = list(axis.line = list(col = "black"),
+                layout.heights=list(strip=1.2)),
+            layout = layout,
+                #  sp.layout = sp_layout,
+                #  xlim = c(110.3, 116.8),
+                #  ylim = c(31.3, 36.6),
                 aspect = 1) +
-        layer_title(x = 0, y = 0.97) +
-        theme_lattice(plot.margin = c(0, 0, 0, 0),
-                      key.margin = c(0, 1.7, 0, 0))
-        # layer_barchart()
-    write_fig(p, outfile, 10, 6.8, show = F)
-    if (show) pdf_view(outfile)
+            # layer_title(x = 0, y = 0.97) +
+            theme_lattice(
+                font_family = "Times",
+                font_size = 14,
+                plot.margin = c(1.5, 2, 0, -0.5)*1,
+                key.margin = c(0, 1.4, 0, 0)
+            )
+    }
+    p1 <- plot_sub(names_sos, cols_sos, brks_sos, NO_begin = 1)
+    p2 <- plot_sub(names_eos, cols_eos, brks_eos, NO_begin = 7)
+    g <- gridExtra::arrangeGrob(grobs = list(p1, p2), nrow = 1)
+    g
+    # write_fig(p1, outfile, 4.8, 6.8, show = T)
+    # if (show) pdf_view(outfile)
 }
+
