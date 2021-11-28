@@ -76,15 +76,15 @@ phenofit_point <- function(d, dates = NULL,
     # plot_season(input, brks)
     ## 2.4 Curve fitting
     fit  <- curvefits(input, brks, constrain = T)
-    ## check the curve fitting parameters
-    l_param <- get_param(fit)
-    dfit   <- get_fitting(fit)
-
-    ## 2.5 Extract phenology
+    # ## check the curve fitting parameters
+    # l_param <- get_param(fit)
+    # dfit   <- get_fitting(fit)
+    #
+    # ## 2.5 Extract phenology
     TRS = 0.5 #c(0.1, 0.2, 0.5)
     l_pheno <- get_pheno(fit, TRS = TRS, IsPlot = FALSE) #%>% map(~melt_list(., "meth"))
     pheno <- l_pheno$doy %>% melt_list("meth")
-
+    
     if (plot) {
         years = period[1]:period[2]
         layer_extra = list(
@@ -101,16 +101,16 @@ phenofit_point <- function(d, dates = NULL,
         grid.draw(g)
     }
     listk(pheno, fit, brks)
-    # pheno
 }
 
-#' dump 4th season
+#' select_first_nGS
 #' @export
-dump_4th_season <- function(df) {
+select_first_nGS <- function(df, nGS = 3) {
     ind_valid = rowMeans(df[, -(1:4)], na.rm = TRUE) %>% which.notna()
     df = df[ind_valid, ] %>% cbind(I = 1:nrow(.), .) # rm all NA records
 
-    inds_bad = df[, grep("_4", flag)]
+    # inds_bad = df[, grep("_4", flag)]
+    inds_bad = as.numeric(substr(df$flag, 6, 6)) %>% { which(. > nGS) }
     info_bad = df[inds_bad, .N, .(gridId, meth, origin)] %>% select(-N)
 
     df_bad = merge(df, info_bad) %>%
@@ -119,24 +119,31 @@ dump_4th_season <- function(df) {
     df_good = df[-df_bad$I, ]
 
     df_mutiGS = dt_ddply(df_bad, .(gridId, meth, origin), function(d) {
-       los = d$TRS5.los
-       # if the smallest GS in the head or tail
-       i_bad = which.min(los)
-       n = length(los)
-       if (n < 4) {
-           # d
-       } else if (i_bad %in% c(1, 4)) {
-           d = d[-i_bad, ]
-       } else {
-           # rm head or tail
-           perc_bad_head = pmax(0 - d$TRS5.sos[1], 0) / d$TRS5.eos[1]
-           perc_bad_tail = pmax(d$TRS5.eos[n] - 365, 0) / d$TRS5.eos[n]
-           i_bad = ifelse(perc_bad_head >= perc_bad_tail, 1, n)
-           d = d[-i_bad, ]
-       }
-       d %>% mutate(flag = sprintf("%s_%d", year(origin), 1:nrow(.)))
+        los = d$TRS5.los
+        n = length(los)
+        if (n > nGS) {
+            i_bad = which.min(los)
+            # if the smallest GS in the head or tail
+            if (i_bad %in% c(1, n)) {
+                d = d[-i_bad, ]
+            } else {
+                # rm the GS with the largest ratio of unintersect period with the current year
+                perc_bad_head = pmax(0 - d$TRS5.sos[1], 0) / d$TRS5.eos[1]
+                perc_bad_tail = pmax(d$TRS5.eos[n] - 365, 0) / d$TRS5.eos[n]
+                i_bad = ifelse(perc_bad_head >= perc_bad_tail, 1, n)
+                d = d[-i_bad, ]
+            }
+            n = nrow(d)
+            # if still > nGS, then only kept the l
+            if (n > nGS) {
+                ind = order(d$TRS5.los, decreasing = TRUE)[1:nGS]
+                d = d[ind, ]
+            }
+        }
+        d %>% mutate(flag = sprintf("%s_%d", year(origin), 1:nrow(.)))
+        # d
     })
-    df2 = rbind(
+    rbind(
         df_good %>% select(-I),
         df_mutiGS %>% select(-I, -TRS5.los)
     )
@@ -181,9 +188,12 @@ point2rast <- function(df, d_coord,
 }
 
 
+#' @param ... other parameters to sp_plot, e.g. `xlim`, `ylim`.
 plot_phenomap <- function(tif,
     outfile = NULL,
     brks = list(sos = seq(10, 120, 10), eos = seq(120, 200, 10)),
+    sp_layout = NULL,
+    ...,
     show = TRUE, overwrite = FALSE)
 {
     if (is.null(outfile)) outfile = gsub(".tif$", ".pdf", tif)
@@ -221,12 +231,11 @@ plot_phenomap <- function(tif,
             strip = TRUE,
             par.strip.text = list(cex = 1.2),
             par.settings2 = list(axis.line = list(col = "black"),
-                layout.heights=list(strip=1.2)),
+            layout.heights=list(strip=1.2)),
             layout = layout,
-                #  sp.layout = sp_layout,
-                #  xlim = c(110.3, 116.8),
-                #  ylim = c(31.3, 36.6),
-                aspect = 1) +
+            sp.layout = sp_layout, ...,
+            aspect = 1) +
+            # layer_barchart() +
             # layer_title(x = 0, y = 0.97) +
             theme_lattice(
                 font_family = "Times",
@@ -236,7 +245,7 @@ plot_phenomap <- function(tif,
             )
     }
     p1 <- plot_sub(names_sos, cols_sos, brks_sos, NO_begin = 1)
-    p2 <- plot_sub(names_eos, cols_eos, brks_eos, NO_begin = 7)
+    p2 <- plot_sub(names_eos, cols_eos, brks_eos, NO_begin = length(names_sos) + 1)
     g <- gridExtra::arrangeGrob(grobs = list(p1, p2), nrow = 1)
     g
     # write_fig(p1, outfile, 4.8, 6.8, show = T)

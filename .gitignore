@@ -52,3 +52,5 @@ notebook
 Figure2*
 temp
 *.jld*
+
+data/shp

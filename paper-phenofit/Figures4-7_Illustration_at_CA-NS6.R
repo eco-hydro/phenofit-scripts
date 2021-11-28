@@ -37,7 +37,7 @@ library(lubridate)
             nextend = 2,
             minExtendMonth = 0.5, maxExtendMonth = 1, minPercValid   = 0
         ),
-        constrain = T)
+        constrain = F)
 
     ## check the curve fitting parameters
     l_param <- get_param(fit)
