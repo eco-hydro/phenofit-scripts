@@ -104,7 +104,7 @@ t = system.time({
     }
 })
 
-# save(res, t, file = "OUTPUT/phenofit_V0.3.4_wHANTS_MODIS_Henan/pheno_Henan_MODIS_V5.rda")
+save(res, t, file = "OUTPUT/phenofit_V0.3.4_wHANTS_MODIS_Henan/pheno_Henan_MODIS_V6.rda")
 
 ## 2. Visualization ------------------------------------------------------------
 # growing season dividing
