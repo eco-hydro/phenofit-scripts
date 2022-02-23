@@ -18,7 +18,7 @@ library(sp)
 library(data.table)
 library(dplyr)
 library(rcolors)
-library(lattice.layers)
+# library(lattice.layers)
 
 source("scripts/main_terra.R")
 
@@ -78,13 +78,12 @@ phenofit_point <- function(d, dates = NULL,
     fit  <- curvefits(input, brks, constrain = T)
     # ## check the curve fitting parameters
     # l_param <- get_param(fit)
-    # dfit   <- get_fitting(fit)
-    #
+
     # ## 2.5 Extract phenology
     TRS = 0.5 #c(0.1, 0.2, 0.5)
     l_pheno <- get_pheno(fit, TRS = TRS, IsPlot = FALSE) #%>% map(~melt_list(., "meth"))
     pheno <- l_pheno$doy %>% melt_list("meth")
-    
+
     if (plot) {
         years = period[1]:period[2]
         layer_extra = list(
@@ -95,6 +94,7 @@ phenofit_point <- function(d, dates = NULL,
         )
         # BUG: unknown reason, `scale_y_continuous` leads color's order changing.
         # fine fitting
+        dfit <- get_fitting(fit)
         g <- plot_curvefits(dfit, brks, title = title, cex = 1.5, ylab = "EVI",
                             layer_extra = layer_extra, angle = 0, show.legend = show.legend)
         # grid.newpage()
@@ -110,16 +110,20 @@ select_first_nGS <- function(df, nGS = 3) {
     df = df[ind_valid, ] %>% cbind(I = 1:nrow(.), .) # rm all NA records
 
     # inds_bad = df[, grep("_4", flag)]
-    inds_bad = as.numeric(substr(df$flag, 6, 6)) %>% { which(. > nGS) }
+    gs = as.numeric(substr(df$flag, 6, 6))
+    inds_bad = gs %>% { which(. > nGS) }
+
+    if (length(inds_bad) == 0) {
+        return(df %>% select(-I, -TRS5.los))
+    }
     info_bad = df[inds_bad, .N, .(gridId, meth, origin)] %>% select(-N)
 
     df_bad = merge(df, info_bad) %>%
-        mutate(TRS5.los = TRS5.eos - TRS5.sos) %>%
-        reorder_name(c("gridId", "meth", "origin", "flag", "TRS5.los"))
+        reorder_name(c("gridId", "meth", "origin", "flag"))
     df_good = df[-df_bad$I, ]
 
     df_mutiGS = dt_ddply(df_bad, .(gridId, meth, origin), function(d) {
-        los = d$TRS5.los
+        los = d$TRS5.eos - d$TRS5.sos
         n = length(los)
         if (n > nGS) {
             i_bad = which.min(los)
@@ -136,7 +140,7 @@ select_first_nGS <- function(df, nGS = 3) {
             n = nrow(d)
             # if still > nGS, then only kept the l
             if (n > nGS) {
-                ind = order(d$TRS5.los, decreasing = TRUE)[1:nGS]
+                ind = order(los, decreasing = TRUE)[1:nGS]
                 d = d[ind, ]
             }
         }
@@ -145,7 +149,7 @@ select_first_nGS <- function(df, nGS = 3) {
     })
     rbind(
         df_good %>% select(-I),
-        df_mutiGS %>% select(-I, -TRS5.los)
+        df_mutiGS %>% select(-I)
     )
 }
 
@@ -171,6 +175,8 @@ point2rast <- function(df, d_coord,
         FLAG = d_grp$flag[i]
 
         outfile <- glue("{outdir}/{prefix}_{METH}_{FLAG}.tif")
+        mkdir(dirname(outfile))
+
         if (file.exists(outfile) && !overwrite) next()
         cat(outfile, "\n")
 
@@ -222,11 +228,23 @@ plot_phenomap <- function(tif,
     cols_eos = get_color("BlGrYeOrReVi200") # BlGrYeOrReVi200
     cols_sos = get_color("MPL_RdYlGn") %>% rev()
 
+    cols_eos = get_color("BlGrYeOrReVi200") # BlGrYeOrReVi200
+    cols_sos = get_color("MPL_RdYlGn") %>% rev()
+
+    # for color blind people
+    # PRGn
+    cols_sos = c('#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#d9f0d3','#a6dba0','#5aae61','#1b7837','#00441b') %>% rev()
+    # PIYg
+    cols_eos = c('#8e0152','#c51b7d','#de77ae','#f1b6da','#fde0ef','#e6f5d0','#b8e186','#7fbc41','#4d9221','#276419') %>% rev()
+
+    cols_sos = rcolors$RdYlBu %>% rev()
+    cols_eos = rcolors$RdYlBu
+
     plot_sub <- function(names, cols, brks, NO_begin = 1) {
         nbrk = length(brks)
         cols = get_color(cols, nbrk)
 
-        sp_plot(r[, names], colors = cols, brks = brks,
+        sp_plot(r[, names], cols = cols, brks = brks,
             NO_begin = NO_begin,
             strip = TRUE,
             par.strip.text = list(cex = 1.2),

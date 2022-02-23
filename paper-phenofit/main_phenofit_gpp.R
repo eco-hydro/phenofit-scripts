@@ -29,8 +29,7 @@ divide_season_GPP <- function(df_part, info, sites_multi, sites_single,
             l <- process_season(d,
                 options = options,
                 # wFUN = wBisquare,
-                # lambda = 100, optim by v_curve
-                .v_curve = TRUE,
+                # lambda = 100, 
                 nptperyear = 365
             )
             l$titlestr <- with(sp[1, ], sprintf(

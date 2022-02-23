@@ -28,6 +28,7 @@ point2rast(df2, l$d_coord, outdir = outdir,
 
 files = dir(outdir, "*.tif", full.names = TRUE)
 
+library(lattice.layers)
 {
     source("scripts/main_pkgs.R")
     tmp =foreach(file = files, i = icount(3)) %do% {
