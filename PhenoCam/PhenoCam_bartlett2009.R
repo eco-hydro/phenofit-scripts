@@ -1,6 +1,8 @@
 library(phenopix)
 library(data.table)
 library(magrittr)
+library(phenofit)
+library(zoo)
 
 # data(bartlett2009)
 # df = bartlett2009 %>% data.table()
