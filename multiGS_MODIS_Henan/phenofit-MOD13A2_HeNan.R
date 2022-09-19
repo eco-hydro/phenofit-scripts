@@ -88,6 +88,7 @@ if (0) {
     # set_options(opt_old)
 }
 
+# If need parallel mode, should be `linux` or `wsl` system
 InitCluster(10, kill = FALSE)
 inds = 1:n
 t = system.time({

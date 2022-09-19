@@ -27,8 +27,9 @@ df2 = select_first_nGS(df, nGS = 3)
 point2rast(df2, d_coord, outdir = outdir,
            prefix = "MOD13A2_Henan_Pheno", overwrite = TRUE)
 
-
 ## Part2: Visualization --------------------------------------------------------
+outdir = "OUTPUT/phenofit_V0.3.4_wHANTS_MODIS_Henan"
+# outdir = "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/PhenoData" %>% mkdir()
 files = dir(outdir, "*.tif", full.names = TRUE)
 
 ## nGS in Henan 2015
@@ -36,11 +37,17 @@ files = dir(outdir, "*.tif", full.names = TRUE)
 source("scripts/main_pkgs.R")
 library(lattice.layers)
 
+poly = vect("/mnt/i/Research/phenology/phenofit.R/scripts/data/shp/poly_Henan.shp")
+
 lst = map(files[1:3], ~ !is.na(sum(rast(.x)[[1:2]])) )
 r_nGS = do.call(c, lst) %>% sum()
 grid_nGS = as_SpatialPixelsDataFrame(raster::brick(r_nGS))
 
-plot(r_nGS)
+write_fig({
+    plot(mask(r_nGS, poly))
+}, "Henan_nGS.pdf", 7, 5)
+
+
 {
     p <- sp_plot(grid_nGS,
                  axes = TRUE,
