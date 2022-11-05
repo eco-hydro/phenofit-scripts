@@ -1,79 +1,6 @@
 
 ``` r
 source("main_pkgs.R")
-# Registered S3 method overwritten by 'Ipaper':
-#   method           from      
-#   print.data.table data.table
-# 
-# Attaching package: 'Ipaper'
-# The following object is masked from 'package:phenofit':
-# 
-#     melt_list
-# 
-# Attaching package: 'sf2'
-# The following object is masked from 'package:graphics':
-# 
-#     plot
-# The following object is masked from 'package:base':
-# 
-#     plot
-# Registered S3 method overwritten by 'lattice.layers':
-#   method    from        
-#   +.trellis latticeExtra
-# 
-# Attaching package: 'lattice.layers'
-# The following object is masked from 'package:rcolors':
-# 
-#     get_color
-# The following object is masked from 'package:Ipaper':
-# 
-#     dev_off
-# The following objects are masked from 'package:phenofit':
-# 
-#     get_options, set_options
-# 
-# Attaching package: 'lubridate'
-# The following objects are masked from 'package:base':
-# 
-#     date, intersect, setdiff, union
-# 
-# Attaching package: 'dplyr'
-# The following objects are masked from 'package:stats':
-# 
-#     filter, lag
-# The following objects are masked from 'package:base':
-# 
-#     intersect, setdiff, setequal, union
-# 
-# Attaching package: 'data.table'
-# The following objects are masked from 'package:dplyr':
-# 
-#     between, first, last
-# The following objects are masked from 'package:lubridate':
-# 
-#     hour, isoweek, mday, minute, month, quarter, second, wday, week,
-#     yday, year
-# The following objects are masked from 'package:Ipaper':
-# 
-#     first, last, transpose
-# terra 1.6.17
-# 
-# Attaching package: 'terra'
-# The following object is masked from 'package:data.table':
-# 
-#     shift
-# The following object is masked from 'package:grid':
-# 
-#     depth
-# The following objects are masked from 'package:lattice.layers':
-# 
-#     rotate, wrap
-# The following object is masked from 'package:Ipaper':
-# 
-#     clamp
-# The following objects are masked from 'package:magrittr':
-# 
-#     extract, inset
 
 mkdir("Figures")
 # [1] "Figures"
@@ -165,7 +92,7 @@ write_fig({
 }, "Figures/Figure_S4_Henan_growing_season_numbers.svg", 7, 5)
 ```
 
-[](Figures/Figure_S4_Henan_growing_season_numbers.svg)
+<img src="../Figures/Figure_S4_Henan_growing_season_numbers.svg">
 
 ``` r
 # r = rast(files[1])
@@ -197,4 +124,4 @@ g = ps[[1]]
 grid.draw(g)
 ```
 
-<img src="Figures/unnamed-chunk-8-1.svg" style="display: block; margin: auto;" />
+<img src="../Figures/unnamed-chunk-8-1.svg" style="display: block; margin: auto;" />

@@ -8,12 +8,12 @@ knitr::opts_chunk$set(
   comment = "#",
   fig.width = 10, fig.height = 5,
   fig.align = "center",
-  fig.path  = "Figures/",
+  fig.path  = "../Figures/",
   dev = 'svg'
 )
 ```
 
-```{r}
+```{r, message=FALSE}
 source("main_pkgs.R")
 
 mkdir("Figures")
@@ -70,8 +70,8 @@ write_fig({
     plot(mask(r_nGS, poly))
 }, "Figures/Figure_S4_Henan_growing_season_numbers.svg", 7, 5)
 ```
-[](Figures/Figure_S4_Henan_growing_season_numbers.svg)
 
+![FigureS4](../Figures/Figure_S4_Henan_growing_season_numbers.svg)
 
 ```{r, eval=FALSE, include=FALSE}
 # 弃用这种绘图方法
