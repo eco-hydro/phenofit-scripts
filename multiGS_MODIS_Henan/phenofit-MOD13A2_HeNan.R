@@ -1,6 +1,6 @@
-source("scripts/main_pkgs.R", encoding = "UTF-8")
+source("main_pkgs.R", encoding = "UTF-8")
 
-infile = "scripts/data/MOD13A2_Henan_2015_2020.rda"
+infile = "data/MOD13A2_Henan_2015_2020.rda"
 
 if (!file.exists(infile)) {
     indir = path.mnt("I:/Research/phenology/gee_whittaker/data-raw/NorthChina")
@@ -58,7 +58,7 @@ do.call(phenofit::set_options, list_options$default)
 # 1. check the performance at random sampled points
 # only run in debug mode
 if (0) {
-    source("scripts/main_pkgs.R", encoding = "UTF-8")
+    source("main_pkgs.R", encoding = "UTF-8")
     set.seed(1)
     inds = sample(1:nrow(data$VI), 10) %>% sort()
     # id_bads = c(19564, 25769, 68760, 79072, 79073, 83378, 83379, 91274, 99172, 99173,
@@ -108,7 +108,7 @@ t = system.time({
     }
 })
 
-save(res, t, file = "OUTPUT/phenofit_V0.3.4_wHANTS_MODIS_Henan/pheno_Henan_MODIS_V6.1.rda")
+save(res, t, file = "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/pheno_Henan_MODIS_V6.1.rda")
 
 ## 2. Visualization ------------------------------------------------------------
 # growing season dividing

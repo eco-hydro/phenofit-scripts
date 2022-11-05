@@ -1,7 +1,10 @@
 # source("main_pkgs.R")
 library(phenofit)
 library(Ipaper) # remotes::install_github("rpkgs/Ipaper")
-library(sf2)    # remotes::install_github("rpkgs/sf2")
+library(sf2) # remotes::install_github("rpkgs/sf.extra")
+library(rcolors)
+library(lattice.layers)
+
 library(grid)
 library(ggplot2)
 library(ggnewscale)
@@ -17,12 +20,10 @@ library(sp)
 
 library(data.table)
 library(dplyr)
-library(rcolors)
-# library(lattice.layers)
 
-source("scripts/main_terra.R")
+source("main_terra.R")
 
-poly = sf::read_sf(path.mnt("D:/Documents/ArcGIS/china/bou2_4p_ChinaProvince.shp")) %>%
+poly = sf::read_sf("data-raw/shp/bou2_4p_ChinaProvince.shp") %>%
     dplyr::filter(NAME == "河南省")
 vect = vect(poly)
 shp <- sf::as_Spatial(poly)

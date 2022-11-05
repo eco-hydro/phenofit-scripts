@@ -1,0 +1,118 @@
+---
+output: github_document
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#",
+  fig.width = 10, fig.height = 5,
+  fig.align = "center",
+  fig.path  = "Figures/",
+  dev = 'svg'
+)
+```
+
+```{r}
+source("main_pkgs.R")
+
+mkdir("Figures")
+outdir <- "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/PhenoData" %>% mkdir()
+```
+
+# 1. Load Data
+```{r, message=FALSE}
+load("data/MOD13A2_Henan_2015_2020.rda")
+load(glue("{dirname(outdir)}/pheno_Henan_MODIS_V6.1.rda"))
+```
+
+# 2. tidy data
+
+> Convert point scale phenological metrics into tiff file
+
+```{r}
+# this step is very slow, at 10~20s
+l = res %>% rm_empty()
+gridId = names(l) %>% as.integer()
+df = melt_list(l, gridId = gridId) #%>% dplyr::select(-meth)
+df[, meth := as.factor(meth)]
+head(df)
+```
+
+```{r}
+## some pixels may have more than 3 growing seasons, eliminate them
+# inds_bad = df[grep("_4", flag)]$gridId %>% unique() %>% sort()
+
+# only select the first `nGS` growing seasons
+df2 = select_first_nGS(df, nGS = 3)
+
+# rda to tiff
+point2rast(df2, d_coord, outdir = outdir,
+           prefix = "MOD13A2_Henan_Pheno", overwrite = TRUE)
+```
+
+## Part2: Visualization --------------------------------------------------------
+
+```{r}
+## how many growing seasons in Henan 2015
+source("main_pkgs.R")
+poly <- vect("data-raw/shp/poly_Henan.shp")
+
+# outdir = "OUTPUT/phenofit_V0.3.4_wHANTS_MODIS_Henan"
+# outdir = "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/PhenoData" %>% mkdir()
+files <- dir(outdir, "*.tif", full.names = TRUE)
+
+lst = map(files[1:3], ~ !is.na(sum(rast(.x)[[1:2]])) )
+r_nGS = do.call(c, lst) %>% sum()
+grid_nGS = as_SpatialPixelsDataFrame(raster::brick(r_nGS))
+
+write_fig({
+    plot(mask(r_nGS, poly))
+}, "Figures/Figure_S4_Henan_growing_season_numbers.svg", 7, 5)
+```
+[](Figures/Figure_S4_Henan_growing_season_numbers.svg)
+
+
+```{r, eval=FALSE, include=FALSE}
+# 弃用这种绘图方法
+# library(lattice.layers)
+p <- sp_plot(grid_nGS,
+    axes = TRUE,
+    sp.layout = sp_layout,
+    # colors = c("green", "yellow", "red"),
+    brks = c(0, 1, 2, 3) + 0.5, key.num2factor = TRUE
+)
+write_fig(p, "Fig_S4_growing season numbers.pdf", 7, 6)
+```
+
+```{r}
+# r = rast(files[1])
+ps = foreach(file = files, i = icount(3)) %do% {
+    if (i > 3) return()
+    season = basename(file) %>% str_extract("\\d(?=\\.tif)") %>% as.numeric()
+    brks = switch(season,
+                `1` = list(sos = seq(10, 120, 10), eos = seq(110, 170, 5)),
+                `2` = list(sos = seq(170, 220, 5), eos = seq(230, 280, 5)),
+                `3` = list(sos = seq(300, 340, 5), eos = seq(360, 400, 5)))
+    odir = dirname(dirname(file))
+    name = basename(file) %>% gsub(".tif$", ".pdf", .) # confirm figure type 
+    outfile = sprintf("%s/%s", odir, name)
+
+    g = plot_phenomap(file, brks = brks,
+        sp_layout = sp_layout,
+        xlim = c(110.3, 116.8),
+        ylim = c(31.3, 36.5),
+        overwrite = TRUE)
+    write_fig(g, outfile, 9.75, 7, show = T) # , use.file_show = TRUE
+    g
+    # pdf_view(outfile)
+}
+## show the first figure
+g = ps[[1]]
+grid.draw(g)
+```
+
+```{r, include=FALSE}
+# library(rasterInspect)
+# rasterInspect(raster(r))
+```

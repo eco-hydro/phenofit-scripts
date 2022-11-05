@@ -30,7 +30,8 @@ library(remotes)
 
 install_github("eco-hydro/phenofit")
 install_github("rpkgs/Ipaper")
-install_github("rpkgs/sf2")
+install_github("rpkgs/sf.extra")
+install_github("rpkgs/lattice.layers")
 ```
 
 # **References**
