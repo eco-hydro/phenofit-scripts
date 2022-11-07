@@ -1,26 +1,27 @@
 # source("main_pkgs.R")
-library(phenofit)
-library(Ipaper) # remotes::install_github("rpkgs/Ipaper")
-library(sf2) # remotes::install_github("rpkgs/sf.extra")
-library(rcolors)
-library(lattice.layers)
+suppressMessages({
+    library(phenofit)
+    library(Ipaper) # remotes::install_github("rpkgs/Ipaper")
+    library(sf2) # remotes::install_github("rpkgs/sf.extra")
+    library(rcolors)
+    # library(lattice.layers)
 
-library(grid)
-library(ggplot2)
-library(ggnewscale)
-library(lubridate)
-library(zeallot)
-library(stringr)
+    library(grid)
+    library(ggplot2)
+    library(ggnewscale)
+    library(lubridate)
+    library(zeallot)
+    library(stringr)
 
-library(dplyr)
-library(job)
-library(sp)
-# library(sf)
-# library(terra)
+    library(dplyr)
+    library(job)
+    library(sp)
+    # library(sf)
+    # library(terra)
 
-library(data.table)
-library(dplyr)
-
+    library(data.table)
+    library(dplyr)
+})
 source("main_terra.R")
 
 poly = sf::read_sf("data-raw/shp/bou2_4p_ChinaProvince.shp") %>%
@@ -69,8 +70,10 @@ phenofit_point <- function(d, dates = NULL,
     period = c(2015, 2020)) {
 
     if (!is.null(d$t)) dates = d$t
+
+    nptperyear = phenofit::get_options("nptperyear")
     input <- check_input(dates, d$VI, d$w, QC_flag = d$QC_flag,
-                         nptperyear = get_options("nptperyear"),
+                         nptperyear = nptperyear,
                          maxgap = nptperyear / 4, wmin = 0.2)
     brks <- season_mov(input)
 

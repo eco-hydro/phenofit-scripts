@@ -1,0 +1,42 @@
+
+```{r, eval=FALSE, echo=FALSE}
+# 1. check the performance at random sampled points
+# only run in debug mode
+source("main_pkgs.R", encoding = "UTF-8")
+set.seed(1)
+inds = sample(1:nrow(data$VI), 10) %>% sort()
+# id_bads = c(19564, 25769, 68760, 79072, 79073, 83378, 83379, 91274, 99172, 99173,
+#             113144, 119239, 125169, 125810, 132338, 136962, 136963, 138684)
+# inds = c(1049, 1270, 1271, 1273, 1391, 1511, 1512, 1513, 1514, 1642, 1644,
+#                 1654, 2240, 2614, 2645, 2649, 2650, 2651, 2652, 2825)
+# i <- inds[1]
+ofile = "test_v0.3.5_Henan_MODIS.pdf"
+dev_open(ofile, 10, 3, use.cairo_pdf = FALSE)
+# library(proffer)
+do.call(phenofit::set_options, list_options$default)
+
+# proffer::pprof({
+    res = foreach(i = inds, k = icount(10)) %do% {
+        runningId(k, 1)
+        d = get_input(i, data)
+        tryCatch({
+            r <- phenofit_point(d, plot = T, period = c(2015, 2020))#$pheno
+            if (k < length(inds)) grid.newpage()
+        }, error = function(e) {
+            message(sprintf('%s', e$message))
+        })
+    }
+# })
+dev_off()
+Ipaper::pdf_view(ofile)
+# set_options(opt_old)
+```
+
+```{r}
+## 2. Visualization ------------------------------------------------------------
+# growing season dividing
+# Ipaper::write_fig({
+#     par(cex = 1.1)
+#     plot_season(INPUT, brks, ylab = "EVI", margin = 0.2, show.shade = FALSE)
+# }, "Figure4_seasons.pdf", 9, 3.8)
+```

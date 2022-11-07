@@ -15,6 +15,7 @@ knitr::opts_chunk$set(
 
 ```{r, message=FALSE}
 source("main_pkgs.R")
+library(lattice.layers)
 
 mkdir("Figures")
 outdir <- "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/PhenoData" %>% mkdir()
