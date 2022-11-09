@@ -27,8 +27,8 @@ if (!file.exists(infile)) {
 
   # dates = terra::rast(infile) %>% names() %>%
   #     substr(1, 10) %>% as.Date("%Y_%m_%d")
-  dates <- modis_date("2015-01-01", "2020-12-31", 16)
-  l <- read_rast(file_vi) %>% rast2mat()
+  dates <- modis_date("2015-01-01", "2020-12-31", 16) # make sure dates are in line with that in tiff
+  l <- read_rast(file_vi, dates) %>% rast2mat()
   l_qc <- read_rast(file_qc) %>% rast2mat()
   l_doy <- read_rast(file_doy) %>% rast2mat()
 

@@ -11,12 +11,15 @@ df2sp <- function (d, formula = ~lon + lat, prj) {
     return(d)
 }
 
+# 注意：tiff文件是否有日期
 #' read sentinel2 tiff file
-read_rast <- function(file, dates) {
+read_rast <- function(file, dates = NULL) {
     r = rast(file)
     # guess date from band names
     # Note that might be failed to guess date
-    dates = names(r) %>% gsub("_", "", .) %>% substr(1, 8) %>% as.Date("%Y%m%d")
+    if (is.null(dates)) {
+        dates = names(r) %>% gsub("_", "", .) %>% substr(1, 8) %>% as.Date("%Y%m%d")
+    }
     terra::time(r) = dates
     names(r) = dates
     r
