@@ -208,12 +208,13 @@ ncluster = 4
 InitCluster(ncluster, kill = FALSE)
 cl = getOption("cl")
 
+clusterExport(cl, c("data", "LCs", "n", "list_options"))
 .tmp = clusterEvalQ(cl, {
     library(Ipaper)
     library(phenofit)
     source("main_pkgs.R", encoding = "UTF-8")
+    do.call(phenofit::set_options, list_options$default)
 })
-clusterExport(cl, c("data", "LCs"))
 ```
 
 ``` r

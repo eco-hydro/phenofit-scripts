@@ -1,0 +1,74 @@
+## 从GEE下载数据后，截取河南省
+
+> 首先从GEE下载数据
+
+- `MOD13A2 EVI`: <https://code.earthengine.google.com/350aed10705fd98056a4b8c355a1a825>
+
+```{r}
+source("main_pkgs.R")
+
+indir = path.mnt("I:/Research/phenology/gee_whittaker/data-raw/NorthChina")
+file_vi  = glue("{indir}/MOD13A2_NorthChina_2016_2020_EVI.tif")
+file_qc  = glue("{indir}/MOD13A2_NorthChina_2016_2020_SummaryQA.tif")
+file_doy = glue("{indir}/MOD13A2_NorthChina_2016_2020_DayOfYear.tif")
+
+## 1. clip Henan Province from NorthChina
+rast_clip <- function(r, mask) {
+    r %>% crop(mask) %>% mask(mask)
+}
+
+prefix = "Henan"
+r = rast_clip(rast(file_vi), vect)
+writeRaster(r, glue("{indir}/MOD13A2_{prefix}_2016_2020_EVI.tif"), overwrite = TRUE)
+
+system.time({
+    writeRaster(rast_clip(rast(file_qc), vect), 
+        glue("{indir}/MOD13A2_{prefix}_2016_2020_SummaryQA.tif"), overwrite = TRUE)
+    writeRaster(rast_clip(rast(file_doy), vect), 
+        glue("{indir}/MOD13A2_{prefix}_2016_2020_DayOfYear.tif"), overwrite = TRUE)
+})
+```
+
+
+## 重新制作数据
+```{r}
+source("main_pkgs.R", encoding = "UTF-8")
+infile <- "data/MOD13A2_Henan_2015_2020_V2.rda"
+
+indir <- path.mnt("data-raw/MOD13A2_Henan_2015_2020/")
+f_vi <- glue("{indir}/MOD13A2_Henan_2016_2020_EVI.tif")
+f_qc <- glue("{indir}/MOD13A2_Henan_2016_2020_SummaryQA.tif")
+f_doy <- glue("{indir}/MOD13A2_Henan_2016_2020_DayOfYear.tif")
+
+# dates = terra::rast(infile) %>% names() %>%
+#     substr(1, 10) %>% as.Date("%Y_%m_%d")
+dates <- modis_date("2015-01-01", "2020-12-31", 16) # make sure dates are in line with that in tiff
+length(dates)
+
+read_tiff <- function(f) {
+  read_rast(f, dates) |> as.data.table(xy=FALSE, na.rm = FALSE) %>% as.matrix()
+}
+
+ra = read_rast(f_vi, dates) 
+coord = crds(ra, df=TRUE, na.rm = FALSE) %>% data.table()
+
+data_raw <- listk(
+  VI = read_tiff(f_vi), 
+  QC = read_tiff(f_qc), 
+  DOY = read_tiff(f_doy)
+)
+
+mean_VI = mean(ra, na.rm = TRUE) |> as.data.table(na.rm = FALSE)
+I_grid = which(!is.na(mean_VI[[1]]))
+
+data = map(data_raw, ~.[I_grid, ])
+data$coord = cbind(I = I_grid, coord[I_grid, ])
+data$date = dates
+data$qcFUN = qc_summary
+
+d_coord = data$coord
+data$grid = SpatialPixelsDataFrame(d_coord[, .(x, y)], data = d_coord[, 1])
+
+# n <- nrow(data$QC)
+save(data, file = infile)
+```

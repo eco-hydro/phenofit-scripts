@@ -16,34 +16,10 @@ knitr::opts_chunk$set(
 ```{r}
 source("main_pkgs.R", encoding = "UTF-8")
 
-infile <- "data/MOD13A2_Henan_2015_2020.rda"
-
-if (!file.exists(infile)) {
-  indir <- path.mnt("I:/Research/phenology/gee_whittaker/data-raw/NorthChina")
-  file_vi <- glue("{indir}/MOD13A2_Henan_2016_2020_EVI.tif")
-  file_qc <- glue("{indir}/MOD13A2_Henan_2016_2020_SummaryQA.tif")
-  file_doy <- glue("{indir}/MOD13A2_Henan_2016_2020_DayOfYear.tif")
-
-  # dates = terra::rast(infile) %>% names() %>%
-  #     substr(1, 10) %>% as.Date("%Y_%m_%d")
-  dates <- modis_date("2015-01-01", "2020-12-31", 16) # make sure dates are in line with that in tiff
-  l <- read_rast(file_vi, dates) %>% rast2mat()
-  l_qc <- read_rast(file_qc) %>% rast2mat()
-  l_doy <- read_rast(file_doy) %>% rast2mat()
-  
-  I_grid <- l$I_grid
-  d_coord <- l$d_coord[I_grid, ]
-  data <- listk(
-    VI = l$mat[I_grid, ] / 1e4,
-    QC = l_qc$mat[I_grid, ],
-    DOY = l_doy$mat[I_grid, ],
-    dates = l$dates, qcFUN = qc_summary
-  )
-  save(data, d_coord, file = infile)
-} else {
-  load(infile)
-  n <- nrow(data$QC)
-}
+infile <- "data/MOD13A2_Henan_2015_2020_V2.rda"
+load(infile)
+data$dates = data$date
+n = nrow(data$VI)
 
 ## Parameter setting
 # If provided, LCs should have the same length as `data$VI`
@@ -87,6 +63,9 @@ do.call(phenofit::set_options, list_options$default)
 - `n_run`：只运行前`n_run`个点。先确保程序在测试的站点上可以跑通，然后再运行所有（设置`n_run=n`）。
 
 - `outfile`：如果指定outfile，则保存数据，否则返回`res`
+
+> global variables: `n`
+
 ```{r}
 # the following function used many global variables, please make sure run the above
 # script before
@@ -96,7 +75,7 @@ do.call(phenofit::set_options, list_options$default)
 #' @return 
 #' - `t`: info of running time
 #' - `res`: extracted phenological metrics
-main_phenofit <- function(n_run = 10, step = 1000, outfile = NULL, .parallel = FALSE) {
+main_phenofit <- function(n, n_run = 10, step = 1000, outfile = NULL, .parallel = FALSE) {
   `%dof%` <- ifelse(.parallel, foreach::`%dopar%`, foreach::`%do%`)
   inds <- 1:n
 
@@ -123,7 +102,7 @@ main_phenofit <- function(n_run = 10, step = 1000, outfile = NULL, .parallel = F
 }
 
 # outfile <- "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/pheno_Henan_MODIS_V6.1.rda"
-res = main_phenofit(10, 1)
+res = main_phenofit(n, n_run = 10, 1)
 str(res[1:3], 2) # only show the first three
 ```
 
@@ -134,24 +113,28 @@ str(res[1:3], 2) # only show the first three
 
 > windows并行较为复杂，需要对每个cluster执行加载包、加载函数、加载数据命令，如下：
 
-```{r phenofit_parallel}
+```{r phenofit_parallel, eval=TRUE}
 library(parallel)
 ncluster = 4
 InitCluster(ncluster, kill = FALSE)
 cl = getOption("cl")
 
 clusterExport(cl, c("data", "LCs", "n", "list_options"))
+
 .tmp = clusterEvalQ(cl, {
     library(Ipaper)
     library(phenofit)
     source("main_pkgs.R", encoding = "UTF-8")
+    
     do.call(phenofit::set_options, list_options$default)
 })
 ```
 
 ```{r}
-res = main_phenofit(10, 1, .parallel = TRUE)
+res = main_phenofit(n, n_run=10, step=1, .parallel = TRUE)
 str(res[1:3], 2) # only show the first three
+# mkdir("OUTPUT")
+# save(res, "OUTPUT/pheno_Henan_MODIS_V7.1.rda")
 ```
 
 
@@ -161,7 +144,7 @@ str(res[1:3], 2) # only show the first three
 ncluster <- 4
 InitCluster(ncluster, kill = FALSE)
 
-res <- main_phenofit(10, 1, ..parallel = TRUE)
+res <- main_phenofit(100, 1, ..parallel = TRUE)
 str(res[1:3], 2) # only show the first three
 ```
 
