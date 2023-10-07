@@ -35,7 +35,11 @@ list_options <- list(
 do.call(phenofit::set_options, list_options$default)
 
 
-
+#' main_phenofit
+#' 
+#' @return 
+#' - `t`: info of running time
+#' - `res`: extracted phenological metrics
 main_phenofit <- function(n, n_run = 10, step = 1000, outfile = NULL, .parallel = FALSE) {
   `%dof%` <- ifelse(.parallel, foreach::`%dopar%`, foreach::`%do%`)
   inds <- 1:n
@@ -82,3 +86,4 @@ str(res[1:3], 2) # only show the first three
 
 mkdir("OUTPUT")
 save(res, file = "OUTPUT/pheno_Anhui_MODIS_V0.1.rda")
+

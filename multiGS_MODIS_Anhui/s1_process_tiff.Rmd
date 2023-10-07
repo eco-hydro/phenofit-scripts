@@ -2,12 +2,24 @@
 
 > 首先从GEE下载数据
 
-<!-- - `MOD13A2 EVI`: <https://code.earthengine.google.com/350aed10705fd98056a4b8c355a1a825> -->
+<!-- - `MOD13A2 EVI`: <https://code.earthengine.google.com/350aed10705fd98056a4b8c355a1a825> -->Da
+
+Data From: [anhui_rda.zip](https://github.com/eco-hydro/phenofit-scripts/files/12705524/anhui_rda.zip), 
+provided by [weichow12318](https://github.com/weichow12318), see <https://github.com/eco-hydro/phenofit-scripts/issues/13> for details.
 
 
 ```{r}
 source("main_pkgs.R")
 source("./multiGS_MODIS_Anhui/main_anhui.R")
+
+
+read_tiff <- function(f, mask=NULL, na.rm = TRUE) {
+  ra = read_rast(f, dates) 
+  if (!is.null(mask)) {
+    ra = mask(ra, mask, maskvalues=FALSE)
+  }
+  ra |> as.data.table(xy=FALSE, na.rm = na.rm) %>% as.matrix()
+}
 ```
 
 ```{r}
@@ -17,31 +29,24 @@ f_vi  = "data-raw/MOD09A1_anhui9_1_2015_ToInt_EVI.tif"
 f_qc  = "data-raw/MOD09A1_anhui9_1_2015_ToInt_StateQA.tif"
 f_doy = "data-raw/MOD09A1_anhui9_1_2015_ToInt_DayOfYear.tif"
 
-## get a mask
 dates <- modis_date("2015-01-01", "2015-12-31", 8) # make sure dates are in line with that in tiff
 length(dates)
 
-read_tiff <- function(f, mask=NULL, na.rm = TRUE) {
-  ra = read_rast(f, dates) 
-  if (!is.null(mask)) {
-    ra = mask(ra, mask, maskvalues=FALSE)
-  }
-  ra |> as.data.table(xy=FALSE, na.rm = na.rm) %>% as.matrix()
-}
-
+## mask unselected regions out
 ra = read_rast(f_vi, dates) 
 mask_vi = mean(ra) >= 0.01
 
 coord = crds(ra, df=TRUE, na.rm = FALSE) %>% data.table()
 
 data_raw <- listk(
-  VI = read_tiff(f_vi, mask_vi)/1e4, 
+  VI = read_tiff(f_vi, mask_vi)/1e4, # convert EVI to [0, 1]
   QC = read_tiff(f_qc, mask_vi), 
   DOY = read_tiff(f_doy, mask_vi)
 )
 
 if (unique_length(sapply(data_raw, nrow)) != 1) stop("error dimensions")
 
+## for the inverse operation of `df` to `rast`
 lgl_mask = as.data.table(mask_vi, na.rm = FALSE)
 I_grid = which(lgl_mask[[1]])
 
@@ -54,7 +59,6 @@ data$qcFUN = qc_summary
 d_coord = data$coord
 data$grid = sp::SpatialPixelsDataFrame(d_coord[, .(x, y)], data = d_coord[, 1])
 
-# n <- nrow(data$QC)
 save(data, file = infile)
 ```
 
