@@ -1,0 +1,118 @@
+---
+output: github_document
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#",
+  fig.width = 10, fig.height = 5,
+  fig.align = "center",
+  fig.path  = "../Figures/",
+  dev = 'svg'
+)
+```
+
+```{r, message=FALSE}
+source("main_pkgs.R")
+library(lattice.layers)
+
+mkdir("Figures")
+outdir <- "OUTPUT/phenofit_V0.3.5_wHANTS_MODIS_Henan/PhenoData" %>% mkdir()
+```
+
+# 1. Load Data
+```{r, message=FALSE}
+# load("data/MOD13A2_Henan_2015_2020.rda")
+infile = "data-raw/MOD09A1_anhui9_EVI_8day_2015.rda"
+load(infile)
+
+load("OUTPUT/pheno_Anhui_MODIS_V0.1.rda")
+# load(glue("{dirname(outdir)}/pheno_Henan_MODIS_V6.1.rda"))
+```
+
+# 2. tidy data
+
+> Convert point scale phenological metrics into tiff file
+
+```{r}
+# this step is very slow, at 10~20s
+l = res %>% rm_empty()
+# gridId = names(l) %>% as.integer()
+df = melt_list(l, "gridId") #%>% dplyr::select(-meth)
+df[, meth := as.factor(meth)]
+head(df)
+```
+
+```{r}
+group_name <- function(d_grp) {
+  map_chr(d_grp, as.character) %>% paste(collapse = "_")
+}
+
+group_names <- function(dat) {
+  .dat = group_data(dat)
+  .dat %<>% .[, 1:(ncol(.)-1)]
+  
+  map_chr(1:nrow(.dat), function(i) {
+    d_grp = .dat[i, ]
+    group_name(d_grp)
+  })
+}
+
+group_to_tiff <- function(d, d_grp, ..., overwrite=TRUE) {
+  name = map_chr(d_grp, as.character) %>% paste(collapse = "_")
+  fout = glue("{outdir}/{prefix}_{name}.tif")
+  print(fout)
+  
+  data = merge(coord, d) %>% select(-gridId, -origin)
+  ra = rast(data)
+
+  if (!file.exists(fout) || overwrite) {
+    writeRaster(ra, fout)
+  }
+  ra
+}
+```
+
+```{r}
+## some pixels may have more than 3 growing seasons, eliminate them
+df2 = select_first_nGS(df, nGS = 3)
+dat = df2 %>% group_by(meth, flag)
+names = group_names(dat)
+
+outdir = "OUTPUT"
+prefix = "MOD_Anhui_Pheno"
+mkdir(outdir)
+
+coord = data$coord[, -1] %>% cbind(gridId = 1:nrow(.))
+ra_pheno <- dat %>% 
+    group_map(group_to_tiff, overwrite=TRUE) %>% set_names(names)
+```
+
+## Part2: Visualization --------------------------------------------------------
+
+```{r}
+source("main_pkgs.R")
+source("./multiGS_MODIS_Anhui/main_anhui.R")
+
+fs <- dir(outdir, "*.tif", full.names = TRUE)
+
+r = rast(fs[1])
+e = ext(r)
+ra_pheno = map(fs, \(f) rast(f) %>% crop(e, extend=TRUE))
+
+lst = map(ra_pheno, ~ !is.na(sum(.x[[1:2]])) )
+r_nGS = do.call(c, lst) %>% sum()
+
+write_fig({
+    # plot(mask(r_nGS, vect(poly)))
+    plot(r_nGS)
+    # plot(vect(poly), add = TRUE)
+}, "Figures/Anhui/Figure1_growing_season_numbers.svg", 7, 5)
+```
+
+```{r}
+write_fig({
+    plot(r[[-4]]) # rm DER.pop
+}, "Figures/Anhui/Figure1_pheno.pdf", 8, 8)
+```
